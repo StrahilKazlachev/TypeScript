@@ -10,6 +10,7 @@
 /// <reference path='documentRegistry.ts' />
 /// <reference path='findAllReferences.ts' />
 /// <reference path='goToDefinition.ts' />
+/// <reference path='infoDiagnostics.ts' />
 /// <reference path='jsDoc.ts' />
 /// <reference path='jsTyping.ts' />
 /// <reference path='navigateTo.ts' />
@@ -1416,6 +1417,13 @@ namespace ts {
             return [...semanticDiagnostics, ...declarationDiagnostics];
         }
 
+        //doc
+        function getInfoDiagnostics(fileName: string): Diagnostic[] {
+            synchronizeHostData();
+
+            return ts.getInfoDiagnostics(getValidSourceFile(fileName), program, cancellationToken);
+        }
+
         function getCompilerOptionsDiagnostics() {
             synchronizeHostData();
             return [...program.getOptionsDiagnostics(cancellationToken), ...program.getGlobalDiagnostics(cancellationToken)];
@@ -2098,6 +2106,7 @@ namespace ts {
             cleanupSemanticCache,
             getSyntacticDiagnostics,
             getSemanticDiagnostics,
+            getInfoDiagnostics,
             getCompilerOptionsDiagnostics,
             getSyntacticClassifications,
             getSemanticClassifications,

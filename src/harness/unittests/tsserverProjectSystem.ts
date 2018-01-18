@@ -467,16 +467,16 @@ namespace ts.projectSystem {
         verifyDiagnostics(actual, []);
     }
 
-    function checkErrorMessage(session: TestSession, eventName: "syntaxDiag" | "semanticDiag", diagnostics: protocol.DiagnosticEventBody) {
-        checkNthEvent(session, ts.server.toEvent(eventName, diagnostics), 0, /*isMostRecent*/ false);
+    function checkErrorMessage(session: TestSession, eventName: protocol.DiagnosticEventKind, diagnostics: protocol.DiagnosticEventBody, isMostRecent = false) { //use me!
+        checkNthEvent(session, ts.server.toEvent(eventName, diagnostics), 0, isMostRecent);
     }
 
-    function checkCompleteEvent(session: TestSession, numberOfCurrentEvents: number, expectedSequenceId: number) {
-        checkNthEvent(session, ts.server.toEvent("requestCompleted", { request_seq: expectedSequenceId }), numberOfCurrentEvents - 1, /*isMostRecent*/ true);
+    function checkCompleteEvent(session: TestSession, numberOfCurrentEvents: number, expectedSequenceId: number, isMostRecent = true) {
+        checkNthEvent(session, ts.server.toEvent("requestCompleted", { request_seq: expectedSequenceId }), numberOfCurrentEvents - 1, isMostRecent);
     }
 
-    function checkProjectUpdatedInBackgroundEvent(session: TestSession, openFiles: string[]) {
-        checkNthEvent(session, ts.server.toEvent("projectsUpdatedInBackground", { openFiles }), 0, /*isMostRecent*/ true);
+    function checkProjectUpdatedInBackgroundEvent(session: TestSession, openFiles: string[], index = 0) {
+        checkNthEvent(session, ts.server.toEvent("projectsUpdatedInBackground", { openFiles }), index, /*isMostRecent*/ true);
     }
 
     function checkNthEvent(session: TestSession, expectedEvent: protocol.Event, index: number, isMostRecent: boolean) {
@@ -3966,6 +3966,72 @@ namespace ts.projectSystem {
             host.runQueuedImmediateCallbacks();
             checkErrorMessage(session, "semanticDiag", { file: file1.path, diagnostics: [] });
         });
+
+        //mv?
+        it("infoinfoinfo", () => { //name
+            const file: FileOrFolder = {
+                path: "/a.js",
+                content: 'require("b")',
+            };
+
+            const host = createServerHost([file]);
+            const session = createSession(host, { canUseEvents: true }); //need canUseEvents?
+            const service = session.getProjectService();
+
+            //! apparently there is an error if we give this one a seq...
+            session.executeCommandSeq<protocol.OpenRequest>({
+                command: server.CommandNames.Open,
+                arguments: {
+                    file: file.path,
+                    fileContent: file.content,
+                    scriptKindName: "JS", //can remove?
+                    projectRootPath: "/", //can remove?
+                },
+            });
+
+            checkNumberOfProjects(service, { inferredProjects: 1 });
+            session.clearMessages();
+            const expectedSequenceId = session.getNextSeq();
+            host.checkTimeoutQueueLengthAndRun(2); // For some reason a JS project has more delayed operations
+
+            checkProjectUpdatedInBackgroundEvent(session, [file.path]);
+            session.clearMessages();
+
+            //makeSessionRequest also sets seq -- to 0...
+            session.executeCommandSeq<protocol.GeterrRequest>({
+                command: server.CommandNames.Geterr,
+                arguments: {
+                    delay: 0,
+                    files: [file.path],
+                }
+            });
+
+            host.checkTimeoutQueueLengthAndRun(1);
+
+            //checkCompleteEvent(session, 1, expectedSequenceId, /*isMostRecent*/ false);
+            //checkProjectUpdatedInBackgroundEvent(session, [file.path], /*index*/ 1);
+            //session.clearMessages();
+
+            //host.checkTimeoutQueueLengthAndRun(1);
+
+            checkErrorMessage(session, "syntaxDiag", { file: file.path, diagnostics: [] }, /*isMostRecent*/ true);
+            session.clearMessages();
+
+            host.runQueuedImmediateCallbacks(1);
+
+            checkErrorMessage(session, "semanticDiag", { file: file.path, diagnostics: [] });
+            //the complete event was above -- error checking completes immediately...
+            checkCompleteEvent(session, 2, expectedSequenceId);
+            session.clearMessages();
+
+            /*
+            checkErrorMessage(session, "infoDiag", {
+                file: file.path,
+                diagnostics: [],
+            });
+            session.clearMessages();
+            */
+        });
     });
 
     describe("tsserverProjectSystem Configure file diagnostics events", () => {
@@ -5184,16 +5250,13 @@ namespace ts.projectSystem {
             }
 
             function verifyRequestCompleted(expectedSeq: number, n: number) {
-                const event = <protocol.RequestCompletedEvent>getMessage(n);
-                assert.equal(event.event, "requestCompleted");
-                assert.equal(event.body.request_seq, expectedSeq, "expectedSeq");
-                session.clearMessages();
+                doVerifyRequestCompleted(expectedSeq, n, host, session);
             }
-
             function getMessage(n: number) {
-                return JSON.parse(server.extractMessage(host.getOutput()[n]));
+                return doGetMessage(host, n);
             }
         });
+
         it("Lower priority tasks are cancellable", () => {
             const f1 = {
                 path: "/a/app.ts",
@@ -5262,6 +5325,18 @@ namespace ts.projectSystem {
             }
         });
     });
+
+    //mv
+    //just use checkCompleteEvent?
+    function doVerifyRequestCompleted(expectedSeq: number, n: number, host: TestServerHost, session: TestSession): void {
+        const event = <protocol.RequestCompletedEvent>doGetMessage(host, n);
+        assert.equal(event.event, "requestCompleted");
+        assert.equal(event.body.request_seq, expectedSeq, "expectedSeq");
+        session.clearMessages();//!
+    }
+    function doGetMessage(host: TestServerHost, n: number) {
+        return JSON.parse(server.extractMessage(host.getOutput()[n]));
+    }
 
     describe("tsserverProjectSystem occurence highlight on string", () => {
         it("should be marked if only on string values", () => {
@@ -5495,7 +5570,7 @@ namespace ts.projectSystem {
         }
         type CalledMaps = CalledMapsWithSingleArg | CalledMapsWithFiveArgs;
         function createCallsTrackingHost(host: TestServerHost) {
-            const calledMaps: Record<CalledMapsWithSingleArg, MultiMap<true>> & Record<CalledMapsWithFiveArgs, MultiMap<[ReadonlyArray<string>, ReadonlyArray<string>, ReadonlyArray<string>, number]>>  = {
+            const calledMaps: Record<CalledMapsWithSingleArg, MultiMap<true>> & Record<CalledMapsWithFiveArgs, MultiMap<[ReadonlyArray<string>, ReadonlyArray<string>, ReadonlyArray<string>, number]>> = {
                 fileExists: setCallsTrackingWithSingleArgFn(CalledMapsWithSingleArg.fileExists),
                 directoryExists: setCallsTrackingWithSingleArgFn(CalledMapsWithSingleArg.directoryExists),
                 getDirectories: setCallsTrackingWithSingleArgFn(CalledMapsWithSingleArg.getDirectories),

@@ -467,13 +467,10 @@ namespace ts.server {
 
         private semanticCheck(file: NormalizedPath, project: Project) {
             try {
-                let diags: ReadonlyArray<Diagnostic> = emptyArray;
-                if (!isDeclarationFileInJSOnlyNonConfiguredProject(project, file)) {
-                    diags = project.getLanguageService().getSemanticDiagnostics(file);
-                }
-
-                const bakedDiags = diags.map((diag) => formatDiag(file, project, diag));
-                this.event<protocol.DiagnosticEventBody>({ file, diagnostics: bakedDiags }, "semanticDiag");
+                const diags = isDeclarationFileInJSOnlyNonConfiguredProject(project, file)
+                    ? emptyArray
+                    : project.getLanguageService().getSemanticDiagnostics(file);
+                this.sendDiagnosticsEvent(file, project, diags, "semanticDiag");
             }
             catch (err) {
                 this.logError(err, "semantic check");
@@ -482,15 +479,34 @@ namespace ts.server {
 
         private syntacticCheck(file: NormalizedPath, project: Project) {
             try {
-                const diags = project.getLanguageService().getSyntacticDiagnostics(file);
-                if (diags) {
-                    const bakedDiags = diags.map((diag) => formatDiag(file, project, diag));
-                    this.event<protocol.DiagnosticEventBody>({ file, diagnostics: bakedDiags }, "syntaxDiag");
+                //TODO: why do we check for diagnostics existence here, but in semanticCheck we always send?
+                const diagnostics = project.getLanguageService().getSyntacticDiagnostics(file);
+                if (diagnostics) {
+                    this.sendDiagnosticsEvent(file, project, diagnostics, "syntaxDiag");
                 }
             }
             catch (err) {
                 this.logError(err, "syntactic check");
             }
+        }
+
+        private infoCheck(file: NormalizedPath, project: Project) {
+            try {
+                this.sendDiagnosticsEvent(file, project, project.getLanguageService().getInfoDiagnostics(file), "infoDiag");
+            }
+            catch (err) {
+                this.logError(err, "info check");
+            }
+        }
+
+        private sendDiagnosticsEvent(
+            file: NormalizedPath,
+            project: Project,
+            diagnostics: ReadonlyArray<Diagnostic> | undefined,
+            kind: protocol.DiagnosticEventKind,
+        ): void {
+            const bakedDiags = diagnostics.map((diag) => formatDiag(file, project, diag));
+            this.event<protocol.DiagnosticEventBody>({ file, diagnostics: bakedDiags }, kind);
         }
 
         private updateErrorCheck(next: NextStep, checkList: PendingErrorCheck[], ms: number, requireOpen = true) {
@@ -499,21 +515,35 @@ namespace ts.server {
 
             let index = 0;
             const checkOne = () => {
-                if (this.changeSeq === seq) {
-                    const checkSpec = checkList[index];
-                    index++;
-                    if (checkSpec.project.containsFile(checkSpec.fileName, requireOpen)) {
-                        this.syntacticCheck(checkSpec.fileName, checkSpec.project);
-                        if (this.changeSeq === seq) {
-                            next.immediate(() => {
-                                this.semanticCheck(checkSpec.fileName, checkSpec.project);
-                                if (checkList.length > index) {
-                                    next.delay(followMs, checkOne);
-                                }
-                            });
-                        }
-                    }
+                if (this.changeSeq !== seq) {
+                    return;
                 }
+
+                const { fileName, project } = checkList[index];
+                index++;
+                if (!project.containsFile(fileName, requireOpen)) {
+                    return;
+                }
+
+                this.syntacticCheck(fileName, project);
+                if (this.changeSeq !== seq) {
+                    return;
+                }
+
+                next.immediate(() => {
+                    this.semanticCheck(fileName, project);
+                    if (this.changeSeq !== seq) {
+                        return;
+                    }
+
+                    this.infoCheck;
+                    //next.immediate(() => {
+                    //    this.infoCheck(fileName, project);
+                        if (checkList.length > index) {
+                            next.delay(followMs, checkOne);
+                        }
+                    //});
+                });
             };
 
             if (checkList.length > index && this.changeSeq === seq) {

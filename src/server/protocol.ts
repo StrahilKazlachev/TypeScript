@@ -169,6 +169,7 @@ namespace ts.server.protocol {
         /**
          * Name of event
          */
+        //there is a new event name "infoDiag" now
         event: string;
 
         /**
@@ -2155,8 +2156,10 @@ namespace ts.server.protocol {
         diagnostics: Diagnostic[];
     }
 
+    export type DiagnosticEventKind = "semanticDiag" | "syntaxDiag" | "infoDiag";
+
     /**
-     * Event message for "syntaxDiag" and "semanticDiag" event types.
+     * Event message for "syntaxDiag", "semanticDiag" and "infoDiag" event types.
      * These events provide syntactic and semantic errors for a file.
      */
     export interface DiagnosticEvent extends Event {

@@ -716,6 +716,8 @@ namespace ts {
                 });
         }
 
+        //getInfoDiagnostics?
+
         public getCompilerOptionsDiagnostics(): string {
             return this.forwardJSONCall(
                 "getCompilerOptionsDiagnostics()",

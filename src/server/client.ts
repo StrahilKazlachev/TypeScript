@@ -360,6 +360,10 @@ namespace ts.server {
             return (<protocol.DiagnosticWithLinePosition[]>response.body).map(entry => this.convertDiagnostic(entry, file));
         }
 
+        getInfoDiagnostics(_file: string): Diagnostic[] {
+            return notImplemented();
+        }
+
         convertDiagnostic(entry: protocol.DiagnosticWithLinePosition, _fileName: string): Diagnostic {
             let category: DiagnosticCategory;
             for (const id in DiagnosticCategory) {
