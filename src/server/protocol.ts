@@ -2122,7 +2122,7 @@ namespace ts.server.protocol {
         text: string;
 
         /**
-         * The category of the diagnostic message, e.g. "error" vs. "warning"
+         * The category of the diagnostic message: "error", "warning", or "info"
          */
         category: string;
 

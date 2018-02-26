@@ -221,9 +221,9 @@ namespace ts {
     export interface LanguageService {
         cleanupSemanticCache(): void;
 
-        getSyntacticDiagnostics(fileName: string): Diagnostic[]; //this isn't used anywhere
+        getSyntacticDiagnostics(fileName: string): Diagnostic[];
         getSemanticDiagnostics(fileName: string): Diagnostic[];
-        getInfoDiagnostics(fileName: string): Diagnostic[]; //!
+        getInfoDiagnostics(fileName: string): Diagnostic[];
 
         // TODO: Rename this to getProgramDiagnostics to better indicate that these are any
         // diagnostics present for the program level, and not just 'options' diagnostics.

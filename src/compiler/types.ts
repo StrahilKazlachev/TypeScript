@@ -4014,6 +4014,7 @@ namespace ts {
     export enum DiagnosticCategory {
         Warning,
         Error,
+        Info,
         Message
     }
 

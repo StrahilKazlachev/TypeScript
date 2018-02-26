@@ -3807,7 +3807,7 @@
     },
 
     "File is a CommonJS module; it may be converted to an ES6 module.": {
-        "category": "Warning",
+        "category": "Info",
         "code": 80001
     },
 

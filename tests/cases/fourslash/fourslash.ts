@@ -349,6 +349,7 @@ declare namespace FourSlashInterface {
         }, displayParts: ts.SymbolDisplayPart[], documentation: ts.SymbolDisplayPart[], tags: ts.JSDocTagInfo[]): void;
         getSyntacticDiagnostics(expected: string): void;
         getSemanticDiagnostics(expected: string): void;
+        getInfoDiagnostics(expected: string): void;
         ProjectInfo(expected: string[]): void;
         allRangesAppearInImplementationList(markerName: string): void;
     }

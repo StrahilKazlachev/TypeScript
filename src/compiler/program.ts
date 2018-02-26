@@ -254,8 +254,9 @@ namespace ts {
     const ellipsis = "...";
     function getCategoryFormat(category: DiagnosticCategory): string {
         switch (category) {
-            case DiagnosticCategory.Warning: return ForegroundColorEscapeSequences.Yellow;
             case DiagnosticCategory.Error: return ForegroundColorEscapeSequences.Red;
+            case DiagnosticCategory.Warning: return ForegroundColorEscapeSequences.Yellow;
+            case DiagnosticCategory.Info: return Debug.fail("Should never get an Info diagnostic on the command line.");
             case DiagnosticCategory.Message: return ForegroundColorEscapeSequences.Blue;
         }
     }

@@ -506,8 +506,11 @@ namespace FourSlash {
         }
 
         private getDiagnostics(fileName: string): ts.Diagnostic[] {
-            return ts.concatenate(this.languageService.getSyntacticDiagnostics(fileName),
-                this.languageService.getSemanticDiagnostics(fileName));
+            return [
+                ...this.languageService.getSyntacticDiagnostics(fileName),
+                ...this.languageService.getSemanticDiagnostics(fileName),
+                ...this.languageService.getInfoDiagnostics(fileName),
+            ];
         }
 
         private getAllDiagnostics(): ts.Diagnostic[] {
@@ -1244,6 +1247,10 @@ Actual: ${stringify(fullActual)}`);
         public getSemanticDiagnostics(expected: string) {
             const diagnostics = this.languageService.getSemanticDiagnostics(this.activeFile.fileName);
             this.testDiagnostics(expected, diagnostics);
+        }
+
+        public getInfoDiagnostics(expected: string): void {
+            this.testDiagnostics(expected, this.languageService.getInfoDiagnostics(this.activeFile.fileName));
         }
 
         private testDiagnostics(expected: string, diagnostics: ReadonlyArray<ts.Diagnostic>) {
@@ -4327,6 +4334,10 @@ namespace FourSlashInterface {
 
         public getSemanticDiagnostics(expected: string) {
             this.state.getSemanticDiagnostics(expected);
+        }
+
+        public getInfoDiagnostics(expected: string) {
+            this.state.getInfoDiagnostics(expected);
         }
 
         public ProjectInfo(expected: string[]) {
