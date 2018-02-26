@@ -536,13 +536,12 @@ namespace ts.server {
                         return;
                     }
 
-                    this.infoCheck;
-                    //next.immediate(() => {
-                    //    this.infoCheck(fileName, project);
+                    next.immediate(() => {
+                        this.infoCheck(fileName, project);
                         if (checkList.length > index) {
                             next.delay(followMs, checkOne);
                         }
-                    //});
+                    });
                 });
             };
 

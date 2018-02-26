@@ -3076,8 +3076,13 @@ namespace ts.projectSystem {
                 host.runQueuedImmediateCallbacks();
                 assert.isFalse(hasError());
                 checkErrorMessage(session, "semanticDiag", { file: untitledFile, diagnostics: [] });
+                session.clearMessages();
 
+                host.runQueuedImmediateCallbacks(1);
+                assert.isFalse(hasError());
+                checkErrorMessage(session, "infoDiag", { file: untitledFile, diagnostics: [] });
                 checkCompleteEvent(session, 2, expectedSequenceId);
+                session.clearMessages();
             }
 
             it("has projectRoot", () => {
@@ -3136,6 +3141,10 @@ namespace ts.projectSystem {
 
                 host.runQueuedImmediateCallbacks();
                 checkErrorMessage(session, "semanticDiag", { file: app.path, diagnostics: [] });
+                session.clearMessages();
+
+                host.runQueuedImmediateCallbacks(1);
+                checkErrorMessage(session, "infoDiag", { file: app.path, diagnostics: [] });
                 checkCompleteEvent(session, 2, expectedSequenceId);
                 session.clearMessages();
             }
@@ -3862,7 +3871,7 @@ namespace ts.projectSystem {
         });
     });
 
-    describe("tsserverProjectSystem add the missing module file for inferred project", () => {
+    describe("tsserverProjectSystem add the missing_module_file for inferred project", () => {//undo name change
         it("should remove the `module not found` error", () => {
             const moduleFile = {
                 path: "/a/b/moduleFile.ts",
@@ -3934,18 +3943,17 @@ namespace ts.projectSystem {
             session.clearMessages();
 
             host.runQueuedImmediateCallbacks();
-            const moduleNotFound = Diagnostics.Cannot_find_module_0;
             const startOffset = file1.content.indexOf('"') + 1;
             checkErrorMessage(session, "semanticDiag", {
-                file: file1.path, diagnostics: [{
-                    start: { line: 1, offset: startOffset },
-                    end: { line: 1, offset: startOffset + '"pad"'.length },
-                    text: formatStringFromArgs(moduleNotFound.message, ["pad"]),
-                    code: moduleNotFound.code,
-                    category: DiagnosticCategory[moduleNotFound.category].toLowerCase(),
-                    source: undefined
-                }]
+                file: file1.path,
+                diagnostics: [
+                    createDiagnostic({ line: 1, offset: startOffset }, { line: 1, offset: startOffset + '"pad"'.length }, Diagnostics.Cannot_find_module_0, ["pad"])
+                ],
             });
+            session.clearMessages();
+
+            host.runQueuedImmediateCallbacks(1);
+            checkErrorMessage(session, "infoDiag", { file: file1.path, diagnostics: [] });
             checkCompleteEvent(session, 2, expectedSequenceId);
             session.clearMessages();
 
@@ -3967,8 +3975,7 @@ namespace ts.projectSystem {
             checkErrorMessage(session, "semanticDiag", { file: file1.path, diagnostics: [] });
         });
 
-        //mv?
-        it("infoinfoinfo", () => { //name
+        it("info_diagnostics", () => {//name
             const file: FileOrFolder = {
                 path: "/a.js",
                 content: 'require("b")',
@@ -4021,17 +4028,30 @@ namespace ts.projectSystem {
 
             checkErrorMessage(session, "semanticDiag", { file: file.path, diagnostics: [] });
             //the complete event was above -- error checking completes immediately...
-            checkCompleteEvent(session, 2, expectedSequenceId);
             session.clearMessages();
 
-            /*
+            host.runQueuedImmediateCallbacks(1);
+
             checkErrorMessage(session, "infoDiag", {
                 file: file.path,
-                diagnostics: [],
+                diagnostics: [
+                    createDiagnostic({ line: 1, offset: 1 }, { line: 1, offset: 13 }, Diagnostics.File_is_a_CommonJS_module_it_may_be_converted_to_an_ES6_module)
+                ],
             });
+            checkCompleteEvent(session, 2, expectedSequenceId);
             session.clearMessages();
-            */
         });
+
+        function createDiagnostic(start: protocol.Location, end: protocol.Location, message: DiagnosticMessage, args: ReadonlyArray<string> = []): protocol.Diagnostic {
+            return {
+                start,
+                end,
+                text: formatStringFromArgs(message.message, args),
+                code: message.code,
+                category: DiagnosticCategory[message.category].toLowerCase(),
+                source: undefined,
+            }
+        }
     });
 
     describe("tsserverProjectSystem Configure file diagnostics events", () => {
@@ -5220,9 +5240,15 @@ namespace ts.projectSystem {
 
                 // the semanticDiag message
                 host.runQueuedImmediateCallbacks();
-                assert.equal(host.getOutput().length, 2, "expect 2 messages");
+                assert.equal(host.getOutput().length, 1);
                 const e2 = <protocol.Event>getMessage(0);
                 assert.equal(e2.event, "semanticDiag");
+                session.clearMessages();
+
+                host.runQueuedImmediateCallbacks(1);
+                assert.equal(host.getOutput().length, 2);
+                const e3 = <protocol.Event>getMessage(0);
+                assert.equal(e3.event, "infoDiag");
                 verifyRequestCompleted(getErrId, 1);
 
                 cancellationToken.resetToken();
