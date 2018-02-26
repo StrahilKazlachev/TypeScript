@@ -1249,8 +1249,10 @@ Actual: ${stringify(fullActual)}`);
             this.testDiagnostics(expected, diagnostics);
         }
 
-        public getInfoDiagnostics(expected: string): void {
-            this.testDiagnostics(expected, this.languageService.getInfoDiagnostics(this.activeFile.fileName));
+        public getInfoDiagnostics(expected: ReadonlyArray<ts.RealizedDiagnostic>): void {
+            //when https://github.com/Microsoft/TypeScript/pull/22193 is in, use `this.testDiagnostics` like others
+            const diagnostics = this.languageService.getInfoDiagnostics(this.activeFile.fileName);
+            assert.deepEqual(ts.realizeDiagnostics(diagnostics, ts.newLineCharacter), expected);
         }
 
         private testDiagnostics(expected: string, diagnostics: ReadonlyArray<ts.Diagnostic>) {
@@ -4336,7 +4338,7 @@ namespace FourSlashInterface {
             this.state.getSemanticDiagnostics(expected);
         }
 
-        public getInfoDiagnostics(expected: string) {
+        public getInfoDiagnostics(expected: ReadonlyArray<ts.RealizedDiagnostic>) {
             this.state.getInfoDiagnostics(expected);
         }
 

@@ -11,15 +11,6 @@
 // @Filename: /c.js
 ////const a = require("./a");
 
-verify.getInfoDiagnostics([{
-    message: "File is a CommonJS module; it may be converted to an ES6 module.",
-    start: 0,
-    length: 18,
-    category: "info",
-    code: 80001,
-}]);
-
-goTo.file("/a.js");
 verify.codeFix({
     description: "Convert to ES6 module",
     newFileContent: "export default 0;",
